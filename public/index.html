@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>TwittMap</title>
+    <link rel="stylesheet" type="text/css" href="header-search.css">
+    <link href='http://fonts.googleapis.com/css?family=Cookie' rel='stylesheet' type='text/css'>
+    <style type="text/css">
+        #map { height: 650px; width: 100%; }
+    </style>
+</head>
+
+<body>
+
+<header class="header-search">
+    <div class="header-limiter">
+        <h1><a href="#">Twitt<span>Map</span></a></h1>
+        <select id="combo">
+            <option searchKeyword="1">Trump</option>
+            <option searchKeyword="2">Love</option>
+            <option searchKeyword="3">New York</option>
+            <option searchKeyword="4">Google</option>
+            <option searchKeyword="5">Summer</option>
+        </select>
+        <input id="button1" type="button" value="Show on Map"/>
+    </div>
+</header>
+
+<div id="map"></div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAD5xAB3Qt9wA7btY_cBSgC7cJ-ZMs1BKo"></script>
+
+<script>
+    var map;
+    function initialize() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 4,
+            center: {lat: 40.7127, lng: -74.0059}
+        });
+    }
+
+    var markers = [];
+    var infoWindow = new google.maps.InfoWindow({});
+    var icons = {
+        positive: {
+            url: 'http://emojipedia-us.s3.amazonaws.com/cache/66/29/66298a09196951d6dcd1109a4ae7ff3f.png',
+            scaledSize: new google.maps.Size(30, 30)
+        },
+        neutral: {
+            url: 'http://emojipedia-us.s3.amazonaws.com/cache/39/0e/390ec41f52a1a989e95dd2b55d4296db.png',
+            scaledSize: new google.maps.Size(30, 30)
+        },
+        negative: {
+            url: 'http://emojipedia-us.s3.amazonaws.com/cache/63/d2/63d239de4b9480e8f6ba75046687d92e.png',
+            scaledSize: new google.maps.Size(30, 30)
+        }
+    };
+    function addMarker(tweet, animate) {
+        var latLng = new google.maps.LatLng(tweet.geo[1], tweet.geo[0]);
+        var sentiment = tweet.sentiment;
+        var markerOptions = {
+            position: latLng,
+            map: map,
+            icon: icons[sentiment]
+        };
+        if (animate)
+            markerOptions.animation = google.maps.Animation.DROP;
+        var marker = new google.maps.Marker(markerOptions);
+        markers.push(marker);
+        marker.addListener('click', function () {
+            var user = tweet.user;
+            var text = tweet.text;
+            var time = tweet.time;
+            infoWindow.setContent(
+                '<div id="bodyContent">' +
+                '<p><a href="https://twitter.com/' + user + '"><b>' + user + '</b></a>: ' + text + '</p>' +
+                '<p><b>' + time + '</b></p>' +
+                '</div>'
+            );
+            infoWindow.open(map, marker);
+        });
+    }
+    function removeMarkers() {
+        for (var i = 0; i < markers.length; i++) {
+            markers[i].setMap(null);
+        }
+        markers = [];
+    }
+
+    google.maps.event.addDomListener(window, 'load', initialize);
+</script>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://cdn.socket.io/socket.io-1.2.1.js"></script>
+
+<script>
+    var socket = io();
+    $('#button1').click(function () {
+        var keyword = $('#combo').find(':selected').text();
+        socket.emit('clicked', {key: keyword});
+    });
+    socket.on('toggle', function (data) {
+        var tweets = data.tweet;
+        removeMarkers();
+        for (var i = 0; i < tweets.length; i++) {
+            addMarker(tweets[i]);
+        }
+    });
+    socket.on('newcoming', function (data) {
+        var tweet = data.tweet;
+        // Ideally, tweet should only be added if it matches the current selected item in the combobox
+        // However, in order to see it more frequently, we choose to always add it
+        addMarker(tweet, true);
+    });
+
+</script>
+
+</body>
+
+</html>
